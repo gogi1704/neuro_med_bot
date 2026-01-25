@@ -6,6 +6,7 @@ from resources import *
 import asyncio
 from telegram.constants import ChatAction
 from telegram.error import BadRequest, RetryAfter
+from tg import tg_manager_chat_handlers
 
 
 async def send_wait_emoji(update, context, wait_text: str = "⏳"):
@@ -70,6 +71,22 @@ async def handle_text_message(update, context):
 
     def add(role, msg):
         return dialog + f"\n{role}: {msg}"
+
+    manager_msg_id = await db.get_user_answer_state(update.effective_user.id)
+
+    #Проверка на чат с менеджером
+    if manager_msg_id is not None:
+        # Получили ответ → очищаем состояние
+        await db.delete_user_answer_state(update.effective_user.id)
+
+        # Отправляем сообщение в группу
+        await tg_manager_chat_handlers.send_to_chat(
+            update, context,
+            message_text=f"📨 Пользователь ответил:\n\n{update.message.text}\n\n\n#Диалог_с_{update.effective_user.id}"
+        )
+
+        await update.message.reply_text("✅ Ваш ответ отправлен менеджеру.")
+        return
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
@@ -164,7 +181,7 @@ async def handle_text_message(update, context):
         dialog = add("User", text)
         await db.append_answer(user_id, "User", text)
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-
+        user_data = await db.get_user(user_id)
         # >>> ДОБАВЛЕНО
         wait_msg = await send_wait_emoji(update, context, "⏳")
         # <<< ДОБАВЛЕНО
@@ -174,14 +191,15 @@ async def handle_text_message(update, context):
             user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
         )
         print(raw)
-        decision = util_funs.parse_base_answer(raw)
+        result, data = util_funs.pars_answer_and_data(raw)
 
-        if decision == "complete":
+        if result == "complete":
             print("med_complete")
             if state == dialog_states["med_collect"]:
-                # логика у тебя как была
-                # dialog = add("Assistant", "Спасибо. Я передал информацию специалисту. В ближайшее время с вами свяжутся.\nДайте знать, если вам что то понадобится")
-                # await db.append_answer(user_id, "User", "Спасибо. Я передал информацию специалисту. В ближайшее время с вами свяжутся.\nДайте знать, если вам что то понадобится")
+                #Отправка в группу
+                text_to_manager = f"Пользователь: {user_data['name']} Просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+                await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
+
                 await complete_dialog(telegram_id= update.effective_chat.id, last_text= "Дайте знать, если вам что то понадобится!" )
                 await replace_wait_with_text(
                     update, context, wait_msg,
@@ -202,10 +220,14 @@ async def handle_text_message(update, context):
                 await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
                 await asyncio.sleep(2)
                 await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
+                #Отправка в группу
+                text_to_manager = f"Пользователь: {user_data['name']} Просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+                await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
+
                 await update.message.reply_text(text="Дайте знать, если вам что то понадобится")
             return
 
-        elif decision == "back":
+        elif result == "back":
             msg_text = "Ок. Дайте знать, если вам что то понадобится"
             # dialog = add("Assistant", msg_text)
             # await db.append_answer(user_id, "Assistant", msg_text)
@@ -214,15 +236,16 @@ async def handle_text_message(update, context):
             await replace_wait_with_text(update, context, wait_msg, msg_text)
             return
 
-        dialog = add("Assistant", decision)
-        await db.append_answer(user_id, "Assistant", decision)
-        await replace_wait_with_text(update, context, wait_msg, decision)
+        dialog = add("Assistant", result)
+        await db.append_answer(user_id, "Assistant", result)
+        await replace_wait_with_text(update, context, wait_msg, result)
         return
 
     # ---------- BOSS COLLECT ----------
     elif state == dialog_states["boss_collect"]:
         dialog = add("User", text)
         await db.append_answer(user_id, "User", text)
+        user_data = await db.get_user(user_id)
 
         # >>> ДОБАВЛЕНО
         wait_msg = await send_wait_emoji(update, context, "⏳")
@@ -233,18 +256,22 @@ async def handle_text_message(update, context):
             user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
         )
 
-        decision = util_funs.parse_base_answer(raw)
+        result, data = util_funs.pars_answer_and_data(raw)
         print(raw)
 
-        if decision == "complete":
+        if result == "complete":
             print("boss_complete")
             await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
+            # Отправка в группу
+            text_to_manager = f"Пользователь: {user_data['name']} Обращается к руководству. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+            await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
+
             await replace_wait_with_text(update, context, wait_msg, "Спасибо. Ваше обращение передано руководству.")
             await complete_dialog(telegram_id=update.effective_chat.id,
                                   last_text="Дайте знать, если вам что то понадобится!")
             return
 
-        elif decision == "back":
+        elif result == "back":
             msg_text = "Ок. Дайте знать, если вам что то понадобится"
             await complete_dialog(telegram_id=update.effective_chat.id,
                                   last_text=msg_text)
@@ -252,9 +279,9 @@ async def handle_text_message(update, context):
             await replace_wait_with_text(update, context, wait_msg, msg_text)
             return
 
-        dialog = add("Assistant", decision)
-        await db.append_answer(user_id, "Assistant", decision)
-        await replace_wait_with_text(update, context, wait_msg, decision)
+        dialog = add("Assistant", result)
+        await db.append_answer(user_id, "Assistant", result)
+        await replace_wait_with_text(update, context, wait_msg, result)
         return
 
 
