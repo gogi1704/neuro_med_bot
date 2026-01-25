@@ -3,6 +3,7 @@ from tg_keyboards.intro_keyboards import *
 import asyncio
 from telegram.constants import ChatAction
 from db import dialogs_db as db
+from util_funs import write_and_sleep
 
 async def start(update, context):
     message = update.effective_message
@@ -18,7 +19,7 @@ async def start(update, context):
 async def intro_agree(update, context):
     q = update.callback_query
     await q.answer()
-
+    await write_and_sleep(update, context, 2)
     await update.effective_message.delete()
 
     await context.bot.send_message(
@@ -30,7 +31,7 @@ async def intro_agree(update, context):
 async def headache_answer(update, context):
     q = update.callback_query
     await q.answer()
-
+    await write_and_sleep(update, context, 2)
     await update.effective_message.delete()
 
     if q.data == "headache_pill":
@@ -43,8 +44,7 @@ async def headache_answer(update, context):
         text=text
     )
 
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    await asyncio.sleep(2)
+    await write_and_sleep(update, context, 2)
 
     await context.bot.send_message(
         chat_id=q.from_user.id,
@@ -52,23 +52,10 @@ async def headache_answer(update, context):
         reply_markup=kb_intro_3()
     )
 
-
-# async def intro_next_4(update, context):
-#     q = update.callback_query
-#     await q.answer()
-#
-#     await update.effective_message.delete()
-#
-#     await context.bot.send_message(
-#         chat_id=q.from_user.id,
-#         text=TEXT_INTRO_3,
-#         reply_markup=kb_intro_3()
-#     )
-
 async def pill_answer(update, context):
     q = update.callback_query
     await q.answer()
-
+    await write_and_sleep(update, context, 2)
     await update.effective_message.delete()
 
     if q.data == "pill_citramon":
@@ -81,13 +68,14 @@ async def pill_answer(update, context):
         text=text
     )
 
+    await write_and_sleep(update, context, 2)
     await context.bot.send_message(
         chat_id=q.from_user.id,
         text=TEXT_INTRO_4,
     )
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    await asyncio.sleep(2)
+    await asyncio.sleep(5)
 
     await context.bot.send_message(
         chat_id=q.from_user.id,
@@ -100,8 +88,8 @@ async def intro_hello_user(update, context):
     await q.answer()
     await update.effective_message.delete()
 
+
     user = await db.get_user(update.effective_chat.id)
-    print(user)
     if user:
         # ТУТ ВВОДИТ ИДЕНТИФИКАТОР КЛИЕНТА
         await db.set_neuro_dialog_states(

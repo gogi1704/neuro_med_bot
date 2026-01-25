@@ -4,6 +4,7 @@ import asyncio
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
+import json
 
 db_path='dialogs.db'
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # на уровень выше папки db
@@ -61,11 +62,20 @@ async def init_db():
                 )
             """)
 
-
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS api_keys (
                     key TEXT PRIMARY KEY,
                     is_active BOOLEAN DEFAULT 1
+                )
+            """)
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_collect (
+                    telegram_id INTEGER PRIMARY KEY,
+                    collect_type TEXT NOT NULL,  
+                    data TEXT NOT NULL,                  
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
@@ -215,30 +225,17 @@ async def periodic_sync(interval: int = 3600):
 
 
 #______ DIALOGS
-async def append_answer(telegram_id: int, text: str):
-        async with aiosqlite.connect(db_path) as db:
-            cursor = await db.execute(
-                "SELECT dialog_text FROM neuro_bot_dialogs WHERE telegram_id = ?",
-                (telegram_id,)
-            )
-            row = await cursor.fetchone()
-
-            # Собираем обновлённый текст
-            new_entry = f"{text.strip()}\n"
-            if row:
-                dialog_text = row[0] + new_entry
-            else:
-                dialog_text = new_entry
-
-            # Обновление или вставка
-            await db.execute("""
-                INSERT INTO neuro_bot_dialogs (telegram_id, dialog_text, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(telegram_id) DO UPDATE SET
-                    dialog_text = excluded.dialog_text,
-                    updated_at = excluded.updated_at
-            """, (telegram_id, dialog_text, datetime.datetime.now(datetime.UTC)))
-            await db.commit()
+async def append_answer(telegram_id: int, role: str, text: str):
+    async with aiosqlite.connect(db_path) as db:
+        new_entry = f"{role}: {text.strip()}\n"
+        await db.execute("""
+            INSERT INTO neuro_bot_dialogs (telegram_id, dialog_text, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(telegram_id) DO UPDATE SET
+                dialog_text = dialog_text || excluded.dialog_text,
+                updated_at = excluded.updated_at
+        """, (telegram_id, new_entry, datetime.datetime.now(datetime.timezone.utc)))
+        await db.commit()
 
 async def create_dialog_user(telegram_id: int, user_name: str):
     async with aiosqlite.connect(db_path) as db:
@@ -346,6 +343,78 @@ async def delete_neuro_dialog_states(user_id: int):
         await db.execute("""
             DELETE FROM neuro_dialog_states WHERE user_id = ?
         """, (user_id,))
+        await db.commit()
+#______
+
+#______ #COLLECT
+async def reset_collect(telegram_id: int, collect_type: str):
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("""
+            INSERT OR REPLACE INTO user_collect
+            (telegram_id, collect_type, data, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        """, (telegram_id, collect_type, "{}"))
+        await db.commit()
+
+async def get_collect(telegram_id: int) -> dict:
+    async with aiosqlite.connect(db_path) as db:
+        async with db.execute(
+            "SELECT data FROM user_collect WHERE telegram_id = ?",
+            (telegram_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return json.loads(row[0])
+            return {}
+
+async def save_collect(telegram_id: int, data: dict):
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("""
+            UPDATE user_collect
+            SET data = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE telegram_id = ?
+        """, (json.dumps(data, ensure_ascii=False), telegram_id))
+        await db.commit()
+
+async def add_collect_answer(telegram_id: int, text: str):
+    collect = await get_collect(telegram_id)
+
+    # порядок вопросов: problem → duration → treatment → contact
+    if "problem" not in collect:
+        collect["problem"] = text
+    elif "duration" not in collect:
+        collect["duration"] = text
+    elif "treatment" not in collect:
+        collect["treatment"] = text
+    elif "contact" not in collect:
+        collect["contact"] = text
+
+    await save_collect(telegram_id, collect)
+
+def is_collect_complete(collect: dict) -> bool:
+    required_fields = {"problem", "duration", "treatment", "contact"}
+    return required_fields.issubset(collect.keys())
+
+async def get_collect_full(telegram_id: int) -> dict:
+    async with aiosqlite.connect(db_path) as db:
+        async with db.execute(
+            "SELECT collect_type, data FROM user_collect WHERE telegram_id = ?",
+            (telegram_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return {
+                    "type": row[0],
+                    "data": json.loads(row[1])
+                }
+            return {}
+
+async def clear_collect(telegram_id: int):
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            "DELETE FROM user_collect WHERE telegram_id = ?",
+            (telegram_id,)
+        )
         await db.commit()
 #______
 

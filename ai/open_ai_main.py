@@ -68,7 +68,7 @@ async def call_openai_with_auto_key(system_prompt, user_prompt, client, context,
             print(f"Другая ошибка: {err}")
             return "error_else"
 
-async def get_gpt_answer(system_prompt, user_prompt, context = None, model = model_gpt4o_mini):
+async def get_gpt_answer(system_prompt, user_prompt, context = None, model = model_gpt_5_mini):
     keys = await db.get_active_keys()
     answer = "api_error_Empty_keys"
     for key in keys:
@@ -81,5 +81,5 @@ async def get_gpt_answer(system_prompt, user_prompt, context = None, model = mod
             await db.deactivate_key(key)
         else:
             return answer
-
+    print(answer)
     return answer
