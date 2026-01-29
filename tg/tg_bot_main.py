@@ -6,10 +6,11 @@ from telegram import BotCommand, BotCommandScopeDefault
 from db.dialogs_db import *
 from ai.open_ai_main import get_gpt_answer
 from tg.tg_error_handlers import error_handler
-from tg.tg_intro_handlers import start, intro_agree, headache_answer, pill_answer, intro_hello_user
+from tg.tg_intro_handlers import start, choose_user_type, handle_choose_user, handle_headache, handle_send_chelik_info, handle_pill_answer
 from tg.tg_bot_util_handlers import update_db, clear_all
 from tg.tg_text_handler import handle_text_message
 from tg.tg_manager_chat_handlers import *
+from tg.tg_tests_line_handlers import handle_test_main_menu, handle_decode_yes_no
 
 load_dotenv()
 TOKEN = os.environ.get("TG_TOKEN")
@@ -33,22 +34,15 @@ async def main():
     application.add_handler(CommandHandler('update_db', update_db))
     application.add_handler(CommandHandler("clear_and_restart", clear_all))
 
-    application.add_handler(CallbackQueryHandler(intro_agree, pattern="^intro_agree$"))
-    application.add_handler(CallbackQueryHandler(
-        headache_answer,
-        pattern="^(headache_pill|headache_wait|headache_water|headache_ignore)$"
-    ))
 
-    application.add_handler(CallbackQueryHandler(
-        pill_answer,
-        pattern="^(pill_tempalgin|pill_charcoal|pill_citramon|pill_analgin)$"
-    ))
-    application.add_handler(CallbackQueryHandler(intro_hello_user, pattern="^intro_next$"))
+    application.add_handler(CallbackQueryHandler(handle_choose_user,pattern="^choose_type_user_"))
+    application.add_handler(CallbackQueryHandler( handle_test_main_menu,pattern="^tests_main_menu_"))
+    application.add_handler(CallbackQueryHandler(choose_user_type, pattern="^intro_agree$"))
+    application.add_handler(CallbackQueryHandler(handle_headache,pattern="^headache_"))
+    application.add_handler(CallbackQueryHandler(handle_decode_yes_no, pattern="^tests_decode_"))
 
-
-    # application.add_handler(CallbackQueryHandler(handle_remind, pattern="^remind:"))
-
-    # application.add_handler(MessageHandler(filters.ChatType.CHANNEL, handle_channel_post))
+    application.add_handler(CallbackQueryHandler(handle_pill_answer,pattern="^pill_"))
+    application.add_handler(CallbackQueryHandler(handle_send_chelik_info, pattern="^intro_next$"))
 
     application.add_handler(CallbackQueryHandler(handle_reply_button_pressed, pattern=r"^reply_to_manager\|"))
     application.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT, handle_manager_reply))

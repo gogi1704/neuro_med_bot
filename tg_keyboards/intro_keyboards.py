@@ -7,7 +7,7 @@ def kb_intro_1():
     ])
 
 
-def kb_intro_2():
+def kb_headache_pills():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Пью таблетку", callback_data="headache_pill")],
         [InlineKeyboardButton("Жду, пока пройдёт", callback_data="headache_wait")],
@@ -15,8 +15,15 @@ def kb_intro_2():
         [InlineKeyboardButton("Ничего не делаю", callback_data="headache_ignore")]
     ])
 
+def kb_choose_user_type():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🧪 Анализы (уже были или планирую)", callback_data="choose_type_user_tests")],
+        [InlineKeyboardButton("🩺 Медосмотр (уже был или планирую)", callback_data="choose_type_user_anamnez")],
+        [InlineKeyboardButton("👤 Я здесь впервые", callback_data="choose_type_user_newUser")]
+    ])
 
-def kb_intro_3():
+
+def kb_pills():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Темпалгин", callback_data="pill_tempalgin")],
         [InlineKeyboardButton("Активированный уголь", callback_data="pill_charcoal")],
@@ -29,17 +36,5 @@ def kb_next():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Дальше", callback_data="intro_next")]
     ])
-#
-#
-# def kb_next_5():
-#     return InlineKeyboardMarkup([
-#         [InlineKeyboardButton("Дальше", callback_data="intro_next_5")]
-#     ])
 
 
-def kb_finish():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Хочу Человека", callback_data="get_human")],
-        [InlineKeyboardButton("Позвать менеджера", callback_data="get_manager")],
-        [InlineKeyboardButton("Связь с руководителем", callback_data="get_boss")]
-    ])

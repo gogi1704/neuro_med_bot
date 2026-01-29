@@ -6,7 +6,7 @@ from resources import *
 import asyncio
 from telegram.constants import ChatAction
 from telegram.error import BadRequest, RetryAfter
-from tg import tg_manager_chat_handlers
+from tg import tg_manager_chat_handlers, tg_tests_line_handlers
 
 
 async def send_wait_emoji(update, context, wait_text: str = "⏳"):
@@ -68,12 +68,12 @@ async def handle_text_message(update, context):
 
     state = await db.get_neuro_dialog_states(user_id)
     dialog = await db.get_dialog(user_id) or ""
+    print(state)
 
     def add(role, msg):
         return dialog + f"\n{role}: {msg}"
 
     manager_msg_id = await db.get_user_answer_state(update.effective_user.id)
-
     #Проверка на чат с менеджером
     if manager_msg_id is not None:
         # Получили ответ → очищаем состояние
@@ -90,7 +90,7 @@ async def handle_text_message(update, context):
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
-    if state == dialog_states_dict["get_name"]:
+    if state == dialog_states["get_name"]:
         await db.create_dialog_user(update.message.from_user.id, text)
         await update.message.reply_text(text=TEXT_INTRO_FINAL)
 
@@ -100,19 +100,19 @@ async def handle_text_message(update, context):
         await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
         await update.message.reply_text(text=TEXT_INTRO_SUPER_FINAL)
 
-    elif state == dialog_states_dict["get_med_id"]:
-        await db.create_dialog_user_with_med_id(update.message.from_user.id, text)
-        await update.message.reply_text(text=TEXT_INTRO_FINAL)
+    elif state == dialog_states["get_med_id"]:
+        await tg_tests_line_handlers.handle_get_med_id(update, context)
 
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-        await asyncio.sleep(4)
-
-        await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
-        await update.message.reply_text(text=TEXT_INTRO_SUPER_FINAL)
+        # await update.message.reply_text(text=TEXT_INTRO_FINAL)
+        #
+        # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        # await asyncio.sleep(4)
+        #
+        # await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
+        # await update.message.reply_text(text=TEXT_INTRO_SUPER_FINAL)
 
     # ---------- BASE ----------
     elif state == dialog_states["base_speak"]:
-        print("base_speak")
         dialog = add("User", text)
         await db.append_answer(user_id, "User", text)
 
@@ -191,7 +191,6 @@ async def handle_text_message(update, context):
         dialog = add("User", text)
         await db.append_answer(user_id, "User", text)
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-        user_data = await db.get_user(user_id)
         # >>> ДОБАВЛЕНО
         wait_msg = await send_wait_emoji(update, context, "⏳")
         # <<< ДОБАВЛЕНО
@@ -207,7 +206,7 @@ async def handle_text_message(update, context):
             print("med_complete")
             if state == dialog_states["med_collect"]:
                 #Отправка в группу
-                text_to_manager = f"Пользователь: {user_data['name']} Просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+                text_to_manager = f"Пользователь просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
                 await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
 
                 await complete_dialog(telegram_id= update.effective_chat.id, last_text= "Дайте знать, если вам что то понадобится!" )
@@ -231,7 +230,7 @@ async def handle_text_message(update, context):
                 await asyncio.sleep(2)
                 await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
                 #Отправка в группу
-                text_to_manager = f"Пользователь: {user_data['name']} Просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+                text_to_manager = f"Пользователь просит помощи специалиста. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
                 await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
 
                 await update.message.reply_text(text="Дайте знать, если вам что то понадобится")
@@ -255,7 +254,6 @@ async def handle_text_message(update, context):
     elif state == dialog_states["boss_collect"]:
         dialog = add("User", text)
         await db.append_answer(user_id, "User", text)
-        user_data = await db.get_user(user_id)
 
         # >>> ДОБАВЛЕНО
         wait_msg = await send_wait_emoji(update, context, "⏳")
@@ -273,7 +271,7 @@ async def handle_text_message(update, context):
             print("boss_complete")
             await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
             # Отправка в группу
-            text_to_manager = f"Пользователь: {user_data['name']} Обращается к руководству. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
+            text_to_manager = f"Пользователь обращается к руководству. У него следующая проблема :{data} \n\n(#Диалог_{update.effective_user.id}). "
             await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
 
             await replace_wait_with_text(update, context, wait_msg, "Спасибо. Ваше обращение передано руководству.")

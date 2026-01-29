@@ -8,11 +8,11 @@ import json
 
 db_path = 'dialogs.db'
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # на уровень выше папки db
-CREDS_PATH = os.path.join(BASE_DIR, "docs", "anamnez-bot-fd6467c32f62.json")
+CREDS_PATH = os.path.join(BASE_DIR, "docs", "after-tests-db-e0cd34372c4a.json")
 
 # ==== Настройки Google API ====
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-SPREADSHEET_NAME = "anamnez_db"  # Имя файла в Google Sheets
+SPREADSHEET_NAME = "after_tests_db"  # Имя файла в Google Sheets
 
 
 # =========================================================
@@ -30,38 +30,38 @@ async def init_db():
             )
         """)
 
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_data (
-                user_id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                is_medosomotr TEXT,
-                phone TEXT,
-                register_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                from_manager TEXT,
-                privacy_policy_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                get_dop_tests TEXT
-            )
-        """)
-
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_anketa (
-                user_id INTEGER PRIMARY KEY,
-                organization_or_inn TEXT,
-                osmotr_date DATETIME,
-                age INTEGER,
-                weight TEXT,
-                height TEXT,
-                smoking TEXT,
-                alcohol TEXT,
-                physical_activity TEXT,
-                hypertension TEXT,
-                darkening_of_the_eyes TEXT,
-                sugar TEXT,
-                joint_pain TEXT,
-                chronic_diseases TEXT,
-                FOREIGN KEY(user_id) REFERENCES user_data(user_id)
-            )
-        """)
+        # await db.execute("""
+        #     CREATE TABLE IF NOT EXISTS user_data (
+        #         user_id INTEGER PRIMARY KEY,
+        #         name TEXT NOT NULL,
+        #         is_medosomotr TEXT,
+        #         phone TEXT,
+        #         register_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        #         from_manager TEXT,
+        #         privacy_policy_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        #         get_dop_tests TEXT
+        #     )
+        # """)
+        #
+        # await db.execute("""
+        #     CREATE TABLE IF NOT EXISTS user_anketa (
+        #         user_id INTEGER PRIMARY KEY,
+        #         organization_or_inn TEXT,
+        #         osmotr_date DATETIME,
+        #         age INTEGER,
+        #         weight TEXT,
+        #         height TEXT,
+        #         smoking TEXT,
+        #         alcohol TEXT,
+        #         physical_activity TEXT,
+        #         hypertension TEXT,
+        #         darkening_of_the_eyes TEXT,
+        #         sugar TEXT,
+        #         joint_pain TEXT,
+        #         chronic_diseases TEXT,
+        #         FOREIGN KEY(user_id) REFERENCES user_data(user_id)
+        #     )
+        # """)
 
         await db.execute("""
             CREATE TABLE IF NOT EXISTS neuro_dialog_states (
@@ -74,16 +74,6 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS api_keys (
                 key TEXT PRIMARY KEY,
                 is_active BOOLEAN DEFAULT 1
-            )
-        """)
-
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_collect (
-                telegram_id INTEGER PRIMARY KEY,
-                collect_type TEXT NOT NULL,  
-                data TEXT NOT NULL,                  
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -121,8 +111,8 @@ def get_sheet():
     client = gspread.authorize(creds)
     sheet = client.open(SPREADSHEET_NAME)
     return {
-        "user_data": sheet.worksheet("user_data"),
-        "user_anketa": sheet.worksheet("user_anketa"),
+        # "user_data": sheet.worksheet("user_data"),
+        # "user_anketa": sheet.worksheet("user_anketa"),
         "neuro_bot_dialogs": sheet.worksheet("neuro_bot_dialogs"),
         "neuro_dialog_states": sheet.worksheet("neuro_dialog_states"),
         "api_keys": sheet.worksheet("api_keys"),
@@ -139,8 +129,8 @@ async def sync_from_google_sheets():
     sheets = get_sheet()
     async with aiosqlite.connect(db_path) as db:
         # Очистка таблиц
-        await db.execute("DELETE FROM user_data")
-        await db.execute("DELETE FROM user_anketa")
+        # await db.execute("DELETE FROM user_data")
+        # await db.execute("DELETE FROM user_anketa")
         await db.execute("DELETE FROM neuro_bot_dialogs")
         await db.execute("DELETE FROM neuro_dialog_states")
         await db.execute("DELETE FROM api_keys")
@@ -148,30 +138,30 @@ async def sync_from_google_sheets():
         await db.execute("DELETE FROM neuro_user_reply_state")
         await db.execute("DELETE FROM neuro_user_answer_state")
 
-        # user_data
-        rows = sheets["user_data"].get_all_values()[1:]
-        for r in rows:
-            user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests = r
-            await db.execute(
-                "INSERT INTO user_data (user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (int(user_id), name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests)
-            )
-
-        # user_anketa
-        rows = sheets["user_anketa"].get_all_values()[1:]
-        for r in rows:
-            user_id, organization_or_inn, osmotr_date, age, weight, height, smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases = r
-            await db.execute(
-                """INSERT INTO user_anketa (
-                    user_id, organization_or_inn, osmotr_date, age, weight, height,
-                    smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (int(user_id), organization_or_inn, osmotr_date,
-                 age if age else None,
-                 weight if weight else None,
-                 height if height else None,
-                 smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases)
-            )
+        # # user_data
+        # rows = sheets["user_data"].get_all_values()[1:]
+        # for r in rows:
+        #     user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests = r
+        #     await db.execute(
+        #         "INSERT INTO user_data (user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        #         (int(user_id), name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests)
+        #     )
+        #
+        # # user_anketa
+        # rows = sheets["user_anketa"].get_all_values()[1:]
+        # for r in rows:
+        #     user_id, organization_or_inn, osmotr_date, age, weight, height, smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases = r
+        #     await db.execute(
+        #         """INSERT INTO user_anketa (
+        #             user_id, organization_or_inn, osmotr_date, age, weight, height,
+        #             smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases
+        #         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        #         (int(user_id), organization_or_inn, osmotr_date,
+        #          age if age else None,
+        #          weight if weight else None,
+        #          height if height else None,
+        #          smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases)
+        #     )
 
         # neuro_bot_dialogs
         rows = sheets["neuro_bot_dialogs"].get_all_values()[1:]
@@ -238,17 +228,17 @@ async def sync_to_google_sheets():
     sheets = get_sheet()
     async with aiosqlite.connect(db_path) as db:
 
-        # user_data
-        async with db.execute("SELECT user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests FROM user_data") as cur:
-            rows = await cur.fetchall()
-        sheets["user_data"].clear()
-        sheets["user_data"].update("A1", [["user_id", "name", "is_medosomotr", "phone", "register_date", "from_manager", "privacy_policy_date", "get_dop_tests"]] + rows)
-
-        # user_anketa
-        async with db.execute("""SELECT user_id, organization_or_inn, osmotr_date, age, weight, height, smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases FROM user_anketa""") as cur:
-            rows = await cur.fetchall()
-        sheets["user_anketa"].clear()
-        sheets["user_anketa"].update("A1", [["user_id", "organization_or_inn", "osmotr_date", "age", "weight", "height", "smoking", "alcohol", "physical_activity", "hypertension", "darkening_of_the_eyes", "sugar", "joint_pain", "chronic_diseases"]] + rows)
+        # # user_data
+        # async with db.execute("SELECT user_id, name, is_medosomotr, phone, register_date, from_manager, privacy_policy_date, get_dop_tests FROM user_data") as cur:
+        #     rows = await cur.fetchall()
+        # sheets["user_data"].clear()
+        # sheets["user_data"].update("A1", [["user_id", "name", "is_medosomotr", "phone", "register_date", "from_manager", "privacy_policy_date", "get_dop_tests"]] + rows)
+        #
+        # # user_anketa
+        # async with db.execute("""SELECT user_id, organization_or_inn, osmotr_date, age, weight, height, smoking, alcohol, physical_activity, hypertension, darkening_of_the_eyes, sugar, joint_pain, chronic_diseases FROM user_anketa""") as cur:
+        #     rows = await cur.fetchall()
+        # sheets["user_anketa"].clear()
+        # sheets["user_anketa"].update("A1", [["user_id", "organization_or_inn", "osmotr_date", "age", "weight", "height", "smoking", "alcohol", "physical_activity", "hypertension", "darkening_of_the_eyes", "sugar", "joint_pain", "chronic_diseases"]] + rows)
 
         # neuro_dialog_states
         async with db.execute("SELECT user_id, dialog_state FROM neuro_dialog_states") as cur:
@@ -364,6 +354,15 @@ async def delete_dialog(telegram_id: int):
         )
         await db.commit()
 
+async def get_med_id(telegram_id: int) -> str | None:
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            "SELECT med_id FROM neuro_bot_dialogs WHERE telegram_id = ?",
+            (telegram_id,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row and row[0] else None
+
 
 # =========================================================
 # USERS
@@ -433,79 +432,6 @@ async def delete_neuro_dialog_states(user_id: int):
         await db.execute("""
             DELETE FROM neuro_dialog_states WHERE user_id = ?
         """, (user_id,))
-        await db.commit()
-
-
-# =========================================================
-# COLLECT
-# =========================================================
-async def reset_collect(telegram_id: int, collect_type: str):
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute("""
-            INSERT OR REPLACE INTO user_collect
-            (telegram_id, collect_type, data, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        """, (telegram_id, collect_type, "{}"))
-        await db.commit()
-
-async def get_collect(telegram_id: int) -> dict:
-    async with aiosqlite.connect(db_path) as db:
-        async with db.execute(
-            "SELECT data FROM user_collect WHERE telegram_id = ?",
-            (telegram_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return json.loads(row[0])
-            return {}
-
-async def save_collect(telegram_id: int, data: dict):
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute("""
-            UPDATE user_collect
-            SET data = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE telegram_id = ?
-        """, (json.dumps(data, ensure_ascii=False), telegram_id))
-        await db.commit()
-
-async def add_collect_answer(telegram_id: int, text: str):
-    collect = await get_collect(telegram_id)
-
-    if "problem" not in collect:
-        collect["problem"] = text
-    elif "duration" not in collect:
-        collect["duration"] = text
-    elif "treatment" not in collect:
-        collect["treatment"] = text
-    elif "contact" not in collect:
-        collect["contact"] = text
-
-    await save_collect(telegram_id, collect)
-
-def is_collect_complete(collect: dict) -> bool:
-    required_fields = {"problem", "duration", "treatment", "contact"}
-    return required_fields.issubset(collect.keys())
-
-async def get_collect_full(telegram_id: int) -> dict:
-    async with aiosqlite.connect(db_path) as db:
-        async with db.execute(
-            "SELECT collect_type, data FROM user_collect WHERE telegram_id = ?",
-            (telegram_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return {
-                    "type": row[0],
-                    "data": json.loads(row[1])
-                }
-            return {}
-
-async def clear_collect(telegram_id: int):
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute(
-            "DELETE FROM user_collect WHERE telegram_id = ?",
-            (telegram_id,)
-        )
         await db.commit()
 
 

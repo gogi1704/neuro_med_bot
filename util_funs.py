@@ -39,3 +39,9 @@ def pars_answer_and_data(model_response: str) :
 async def write_and_sleep(update, context, sleep_time):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     await asyncio.sleep(sleep_time)
+
+def parse_int(text: str) -> int | None:
+        try:
+            return int(text)
+        except ValueError:
+            return None
