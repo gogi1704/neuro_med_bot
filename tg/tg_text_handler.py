@@ -132,22 +132,32 @@ async def handle_text_message(update, context):
             print("get_med")
             await db.set_neuro_dialog_states(user_id, dialog_states["manager_collect"])
 
-            msg_text = "Вы хотите обратиться за помощью к специалисту. Я верно вас понял?"
-            await replace_wait_with_text(update, context, wait_msg, msg_text)
+            raw = await open_ai_main.get_gpt_answer(
+                system_prompt=COLLECT_SYSTEM_PROMPT,
+                user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
+            )
+            decision = util_funs.parse_base_answer(raw)
+            print(raw)
+            dialog = add("Assistant", decision)
+            await db.append_answer(user_id, "Assistant", decision)
 
-            dialog = add("Assistant", msg_text)
-            await db.append_answer(user_id, "Assistant", msg_text)
+            await replace_wait_with_text(update, context, wait_msg, decision)
             return
 
         if answer == "get_manager":
             print("get_manager")
             await db.set_neuro_dialog_states(user_id, dialog_states["manager_collect"])
 
-            msg_text = "Позвать менеджера?Если да, то опишите проблему, пожалуйста."
-            dialog = add("Assistant", msg_text)
-            await db.append_answer(user_id, "Assistant", msg_text)
+            raw = await open_ai_main.get_gpt_answer(
+                system_prompt=COLLECT_SYSTEM_PROMPT,
+                user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
+            )
+            decision = util_funs.parse_base_answer(raw)
+            print(raw)
+            dialog = add("Assistant", decision)
+            await db.append_answer(user_id, "Assistant", decision)
 
-            await replace_wait_with_text(update, context, wait_msg, msg_text)
+            await replace_wait_with_text(update, context, wait_msg, decision)
             return
 
         if answer == "get_boss":
