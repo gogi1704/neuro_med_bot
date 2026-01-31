@@ -5,61 +5,10 @@ from ai.ai_prompts import  *
 from resources import *
 import asyncio
 from telegram.constants import ChatAction
-from telegram.error import BadRequest, RetryAfter
 from tg import tg_manager_chat_handlers, tg_tests_line_handlers
+from util_funs import send_wait_emoji, replace_wait_with_text
+from tg_keyboards.intro_keyboards import kb_else_text
 
-
-async def send_wait_emoji(update, context, wait_text: str = "⏳"):
-    """
-    Отправляет ОДНО сообщение-индикатор и возвращает объект Message (или None, если не удалось отправить).
-    """
-    chat_id = update.effective_chat.id
-    try:
-        return await context.bot.send_message(chat_id=chat_id, text=wait_text)
-    except RetryAfter as e:
-        await asyncio.sleep(float(getattr(e, "retry_after", 1.0)))
-        try:
-            return await context.bot.send_message(chat_id=chat_id, text=wait_text)
-        except Exception:
-            return None
-    except Exception:
-        return None
-
-
-async def replace_wait_with_text(update, context, wait_msg, answer_text: str):
-    """
-    Пытается заменить (edit) ТО САМОЕ сообщение wait_msg (⏳) на answer_text.
-    Если редактирование невозможно — удаляет wait_msg и отправляет answer_text отдельным сообщением.
-    """
-    chat_id = update.effective_chat.id
-
-    if wait_msg and getattr(wait_msg, "message_id", None):
-        mid = wait_msg.message_id
-
-        # 1) Попытка отредактировать исходное сообщение
-        try:
-            await context.bot.edit_message_text(chat_id=chat_id, message_id=mid, text=answer_text)
-            return
-        except RetryAfter as e:
-            await asyncio.sleep(float(getattr(e, "retry_after", 1.0)))
-            try:
-                await context.bot.edit_message_text(chat_id=chat_id, message_id=mid, text=answer_text)
-                return
-            except Exception:
-                pass
-        except BadRequest:
-            pass
-        except Exception:
-            pass
-
-        # 2) Если edit не сработал — пробуем удалить ⏳
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=mid)
-        except Exception:
-            pass
-
-    # 3) Fallback: отправляем ответ отдельным сообщением
-    await update.message.reply_text(answer_text)
 
 
 async def handle_text_message(update, context):
@@ -87,29 +36,22 @@ async def handle_text_message(update, context):
 
         await update.message.reply_text("✅ Ваш ответ отправлен менеджеру.")
         return
-
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
-    if state == dialog_states["get_name"]:
-        await db.create_dialog_user(update.message.from_user.id, text)
-        await update.message.reply_text(text=TEXT_INTRO_FINAL)
 
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-        await asyncio.sleep(4)
+    if state == dialog_states["after_tests_get_info"]:
+        text_to_manager = f"У пользователя все в порядке с анализами, но он хочет поговорить со специалистом! Вот, как он в двух словах описал проблему :{text} \n\n(#Диалог_{update.effective_user.id}). "
+        await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
+        await complete_dialog(telegram_id=update.effective_chat.id,
+                              last_text="Дайте знать, если вам что то понадобится!")
 
         await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
-        await update.message.reply_text(text=TEXT_INTRO_SUPER_FINAL)
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        await asyncio.sleep(2)
+        await update.message.reply_text(text="Дайте знать, если вам что то понадобится")
 
     elif state == dialog_states["get_med_id"]:
         await tg_tests_line_handlers.handle_get_med_id(update, context)
-
-        # await update.message.reply_text(text=TEXT_INTRO_FINAL)
-        #
-        # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-        # await asyncio.sleep(4)
-        #
-        # await db.set_neuro_dialog_states(update.message.from_user.id, dialog_states["base_speak"])
-        # await update.message.reply_text(text=TEXT_INTRO_SUPER_FINAL)
 
     # ---------- BASE ----------
     elif state == dialog_states["base_speak"]:
@@ -291,6 +233,11 @@ async def handle_text_message(update, context):
         await db.append_answer(user_id, "Assistant", result)
         await replace_wait_with_text(update, context, wait_msg, result)
         return
+
+    else:
+        await update.message.reply_text("Для начала закончите цикл с использованием кнопок, а после перейдите к общению с нейро-помощником!Или нажмите кнопку и перейдите в меню.",
+                                        reply_markup= kb_else_text()
+                                        )
 
 
 async def complete_dialog( telegram_id: int, last_text):

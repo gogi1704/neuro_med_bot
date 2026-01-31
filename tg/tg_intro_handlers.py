@@ -17,18 +17,6 @@ async def start(update, context):
         reply_markup=kb_intro_1()
     )
 
-# async def intro_agree(update, context):
-#     q = update.callback_query
-#     await q.answer()
-#     await write_and_sleep(update, context, 2)
-#     await update.effective_message.delete()
-#
-#     await context.bot.send_message(
-#         chat_id=q.from_user.id,
-#         text=TEXT_INTRO_2,
-#         reply_markup=kb_intro_2()
-#     )
-
 async def choose_user_type(update, context):
     q = update.callback_query
     await q.answer()
@@ -57,19 +45,15 @@ async def handle_choose_user(update, context):
     elif q.data == "choose_type_user_anamnez":
         await context.bot.send_message(
                 chat_id=q.from_user.id,
-                text= "тут будет ветка для Медосмотров",
-                reply_markup= InlineKeyboardMarkup([
-        [InlineKeyboardButton("Вернуться назад", callback_data="intro_agree")]
-    ])
+                text=TEXT_TESTS_MAIN_MENU,
+                reply_markup= tests_keyboards.kb_tests_main_menu()
             )
 
     elif q.data == "choose_type_user_newUser":
         await context.bot.send_message(
             chat_id=q.from_user.id,
-            text="тут будет новая ветка для Незнакомцев",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Вернуться назад", callback_data="intro_agree")]
-            ])
+            text= TEXT_NEW_USER,
+            reply_markup= kb_new_user()
         )
 
 
@@ -153,5 +137,4 @@ async def handle_send_chelik_info(update, context):
         chat_id=q.from_user.id,
         text=TEXT_CHELICL_INFO)
     await db.set_neuro_dialog_states(update.effective_chat.id, dialog_states["base_speak"])
-
 

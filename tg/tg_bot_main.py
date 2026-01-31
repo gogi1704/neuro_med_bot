@@ -10,7 +10,7 @@ from tg.tg_intro_handlers import start, choose_user_type, handle_choose_user, ha
 from tg.tg_bot_util_handlers import update_db, clear_all
 from tg.tg_text_handler import handle_text_message
 from tg.tg_manager_chat_handlers import *
-from tg.tg_tests_line_handlers import handle_test_main_menu, handle_decode_yes_no
+from tg.tg_tests_line_handlers import handle_test_main_menu, handle_decode_yes_no, handle_after_good_tests_yes_no
 
 load_dotenv()
 TOKEN = os.environ.get("TG_TOKEN")
@@ -41,6 +41,7 @@ async def main():
     application.add_handler(CallbackQueryHandler(handle_headache,pattern="^headache_"))
     application.add_handler(CallbackQueryHandler(handle_decode_yes_no, pattern="^tests_decode_"))
 
+    application.add_handler(CallbackQueryHandler(handle_after_good_tests_yes_no, pattern="^after_good_tests_"))
     application.add_handler(CallbackQueryHandler(handle_pill_answer,pattern="^pill_"))
     application.add_handler(CallbackQueryHandler(handle_send_chelik_info, pattern="^intro_next$"))
 

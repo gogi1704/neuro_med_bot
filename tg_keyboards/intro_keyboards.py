@@ -37,4 +37,19 @@ def kb_next():
         [InlineKeyboardButton("Дальше", callback_data="intro_next")]
     ])
 
+def kb_after_good_tests():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Хочу", callback_data="after_good_tests_yes")],
+        [InlineKeyboardButton("Нет, спасибо", callback_data="after_good_tests_no")]
+    ])
 
+def kb_new_user():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🩺 Консультация врача", callback_data="tests_main_menu_consult_med")],
+        [InlineKeyboardButton("🤖 Поддержка Челика", callback_data="tests_main_menu_consult_neuro")]
+    ])
+
+def kb_else_text():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Закончить и открыть главное меню", callback_data="choose_type_user_tests")]
+    ])
