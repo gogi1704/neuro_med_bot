@@ -53,6 +53,9 @@ async def handle_text_message(update, context):
     elif state == dialog_states["get_med_id"]:
         await tg_tests_line_handlers.handle_get_med_id(update, context)
 
+    elif state == dialog_states["get_med_id_decode"]:
+        await tg_tests_line_handlers.handle_get_med_id_decode(update, context)
+
     # ---------- BASE ----------
     elif state == dialog_states["base_speak"]:
         dialog = add("User", text)

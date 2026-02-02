@@ -10,12 +10,21 @@ async def start(update, context):
     message = update.effective_message
     if message:
         await message.delete()
+    await db.delete_dialog(update.effective_chat.id)
 
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=TEXT_INTRO_1,
-        reply_markup=kb_intro_1()
-    )
+    user_state = await db.get_user_state(update.effective_user.id)
+    if user_state:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=TEXT_TESTS_MAIN_MENU,
+            reply_markup=tests_keyboards.kb_tests_main_menu()
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=TEXT_INTRO_1,
+            reply_markup=kb_intro_1()
+        )
 
 async def choose_user_type(update, context):
     q = update.callback_query
@@ -36,6 +45,7 @@ async def handle_choose_user(update, context):
     await update.effective_message.delete()
 
     if q.data == "choose_type_user_tests":
+        await db.set_user_state(update.effective_user.id, "state_tests")
         await context.bot.send_message(
                 chat_id=q.from_user.id,
                 text=TEXT_TESTS_MAIN_MENU,
@@ -43,6 +53,7 @@ async def handle_choose_user(update, context):
             )
 
     elif q.data == "choose_type_user_anamnez":
+        await db.set_user_state(update.effective_user.id, "state_anamnez")
         await context.bot.send_message(
                 chat_id=q.from_user.id,
                 text=TEXT_TESTS_MAIN_MENU,
@@ -50,6 +61,7 @@ async def handle_choose_user(update, context):
             )
 
     elif q.data == "choose_type_user_newUser":
+        await db.set_user_state(update.effective_user.id, "state_new_user")
         await context.bot.send_message(
             chat_id=q.from_user.id,
             text= TEXT_NEW_USER,

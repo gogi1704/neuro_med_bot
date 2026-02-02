@@ -13,7 +13,7 @@ async def update_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def clear_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     user_id = update.effective_user.id
-    await dialogs_db.delete_dialog(user_id)
+    await dialogs_db.delete_line(user_id)
     await dialogs_db.delete_neuro_dialog_states(user_id)
 
     await start(update, context)

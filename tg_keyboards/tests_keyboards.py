@@ -14,3 +14,9 @@ def kb_tests_decode():
         [InlineKeyboardButton("Да", callback_data="tests_decode_yes")],
         [InlineKeyboardButton("Нет", callback_data="tests_decode_no")],
     ])
+
+def kb_tests_decode_empty():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Попросить лаборанта", callback_data="empty_decode_get_laborant")],
+        [InlineKeyboardButton("Обратиться к менеджеру", callback_data="empty_decode_get_manager")],
+    ])
