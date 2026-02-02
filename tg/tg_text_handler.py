@@ -1,13 +1,18 @@
 from db import dialogs_db as db
 from ai import  open_ai_main
 import util_funs
+from doc_funs import *
 from ai.ai_prompts import  *
 from resources import *
 import asyncio
 from telegram.constants import ChatAction
 from tg import tg_manager_chat_handlers, tg_tests_line_handlers
 from util_funs import send_wait_emoji, replace_wait_with_text
-from tg_keyboards.intro_keyboards import kb_else_text
+from tg_keyboards.intro_keyboards import kb_else_text, kb_after_good_tests
+from tg_keyboards import back_navigation_keyboards
+from tg_keyboards import tests_keyboards
+from tg.tg_tests_line_handlers import send_manager_get_decode
+
 
 
 
@@ -89,22 +94,6 @@ async def handle_text_message(update, context):
             await replace_wait_with_text(update, context, wait_msg, decision)
             return
 
-        if answer == "get_manager":
-            print("get_manager")
-            await db.set_neuro_dialog_states(user_id, dialog_states["manager_collect"])
-
-            raw = await open_ai_main.get_gpt_answer(
-                system_prompt=COLLECT_SYSTEM_PROMPT,
-                user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
-            )
-            decision = util_funs.parse_base_answer(raw)
-            print(raw)
-            dialog = add("Assistant", decision)
-            await db.append_answer(user_id, "Assistant", decision)
-
-            await replace_wait_with_text(update, context, wait_msg, decision)
-            return
-
         if answer == "get_boss":
             await db.set_neuro_dialog_states(user_id, dialog_states["boss_collect"])
 
@@ -123,6 +112,102 @@ async def handle_text_message(update, context):
             await db.append_answer(user_id, "Assistant", decision)
 
             await replace_wait_with_text(update, context, wait_msg, decision)
+            return
+
+        if answer == "get_analyses":
+            await db.delete_neuro_dialog_states(update.effective_user.id)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="тут будет ветка для Сдачи тестов",
+                reply_markup= back_navigation_keyboards.kb_back_to_main_menu()
+            )
+
+        if answer == "get_results":
+            med_id = await db.get_med_id(user_id)
+            await db.delete_neuro_dialog_states(update.effective_user.id)
+
+            if med_id:
+                doc_url = await db.get_test_results(int(med_id))
+                is_tests_bad = await db.get_deviations(int(med_id))
+
+                if doc_url:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=TEXT_TESTS_IS_HAS_TRUE)
+
+                    await util_funs.write_and_sleep(update, context, 5)
+                    await send_results_doc_and_text(update, context, doc_url)
+
+                    if is_tests_bad:
+                        await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text=TEXT_TESTS_IS_BAD,
+                            reply_markup=tests_keyboards.kb_tests_decode()
+                        )
+                    else:
+                        await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text=TEXT_TESTS_IS_GOOD)
+
+                        await util_funs.write_and_sleep(update, context, 2)
+                        await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text=TEXT_AFTER_GOOD_TESTS,
+                            reply_markup=kb_after_good_tests()
+                        )
+                else:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=TEXT_TESTS_IS_HAS_FALSE)
+                    await util_funs.write_and_sleep(update, context, 2)
+
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=TEXT_TESTS_MAIN_MENU,
+                        reply_markup=tests_keyboards.kb_tests_main_menu()
+                    )
+
+            else:
+                await db.set_neuro_dialog_states(user_id, dialog_states["get_med_id"])
+                await context.bot.send_message(
+                    chat_id= update.effective_chat.id,
+                    text=TEXT_TESTS_GET_ID,
+                )
+            return
+
+        if answer == "get_decode":
+            med_id = await db.get_med_id(user_id)
+            await db.delete_neuro_dialog_states(update.effective_user.id)
+
+            if med_id:
+                decode = await db.get_test_decode(int(med_id))
+
+                if decode:
+                    decode_message = f"Вот ваша расшифровка: {decode}"
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=decode_message,
+                    )
+                    return
+
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=TEXT_TESTS_IS_HAS_TRUE_DECODE,
+                )
+                await util_funs.write_and_sleep(update, context, 3)
+                await send_manager_get_decode(update, context, med_id)
+                await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=TEXT_TESTS_GET_DECODE_FINAL,
+                )
+
+            else:
+                await db.set_neuro_dialog_states(user_id, dialog_states["get_med_id_decode"])
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=TEXT_TESTS_GET_ID,
+                )
             return
 
         dialog = add("Assistant", answer)
@@ -238,9 +323,7 @@ async def handle_text_message(update, context):
         return
 
     else:
-        await update.message.reply_text("Для начала закончите цикл с использованием кнопок, а после перейдите к общению с нейро-помощником!Или нажмите кнопку и перейдите в меню.",
-                                        reply_markup= kb_else_text()
-                                        )
+        await update.message.reply_text("Для начала закончите цикл с использованием кнопок☝️, а после перейдите к общению с нейро-помощником!Или используйте команду /start и попадете в главное меню!")
 
 
 async def complete_dialog( telegram_id: int, last_text):

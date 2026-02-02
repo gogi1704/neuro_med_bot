@@ -36,7 +36,7 @@ async def main():
 
 
     application.add_handler(CallbackQueryHandler(handle_choose_user,pattern="^choose_type_user_"))
-    application.add_handler(CallbackQueryHandler( handle_test_main_menu,pattern="^tests_main_menu_"))
+    application.add_handler(CallbackQueryHandler(handle_test_main_menu,pattern="^tests_main_menu_"))
     application.add_handler(CallbackQueryHandler(choose_user_type, pattern="^intro_agree$"))
     application.add_handler(CallbackQueryHandler(handle_headache,pattern="^headache_"))
     application.add_handler(CallbackQueryHandler(handle_decode_yes_no, pattern="^tests_decode_"))

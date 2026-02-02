@@ -11,6 +11,7 @@ async def start(update, context):
     if message:
         await message.delete()
     await db.delete_dialog(update.effective_chat.id)
+    await db.delete_neuro_dialog_states(update.effective_user.id)
 
     user_state = await db.get_user_state(update.effective_user.id)
     if user_state:
@@ -43,7 +44,6 @@ async def handle_choose_user(update, context):
     await q.answer()
     await write_and_sleep(update, context, 2)
     await update.effective_message.delete()
-
     if q.data == "choose_type_user_tests":
         await db.set_user_state(update.effective_user.id, "state_tests")
         await context.bot.send_message(

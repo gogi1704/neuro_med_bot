@@ -62,12 +62,6 @@ async def handle_test_main_menu(update, context):
                         text=TEXT_TESTS_IS_GOOD)
 
                     await write_and_sleep(update, context, 2)
-                    # await context.bot.send_message(
-                    #     chat_id=update.effective_chat.id,
-                    #     text=TEXT_TEST_ARE_YOU_WAKEUP,
-                    #     reply_markup=intro_keyboards.kb_headache_pills()
-                    # )
-
                     await context.bot.send_message(
                         chat_id=update.effective_chat.id,
                         text=TEXT_AFTER_GOOD_TESTS,
