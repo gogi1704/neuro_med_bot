@@ -11,15 +11,16 @@ from tg.tg_bot_util_handlers import update_db, clear_all
 from tg.tg_text_handler import handle_text_message
 from tg.tg_manager_chat_handlers import *
 from tg.tg_tests_line_handlers import handle_test_main_menu, handle_decode_yes_no, handle_after_good_tests_yes_no, handle_empty_decode
-
+from util_funs import setup_jobs
 load_dotenv()
 TOKEN = os.environ.get("TG_TOKEN")
 
 async def main():
     await dialogs_db.init_db()
-    # asyncio.create_task(periodic_sync())
+    asyncio.create_task(periodic_sync())
 
     application = Application.builder().token(TOKEN).concurrent_updates(True).build()
+    setup_jobs(application)
     await get_gpt_answer("test", "test", context= application)
 
     print('Бот запущен...')

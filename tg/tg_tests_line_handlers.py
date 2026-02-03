@@ -68,6 +68,13 @@ async def handle_test_main_menu(update, context):
                         reply_markup=intro_keyboards.kb_after_good_tests()
                     )
             else:
+                await db.add_pending_notification(
+                    med_id=int(med_id),
+                    telegram_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    kind="decode"
+                )
+
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=TEXT_TESTS_IS_HAS_FALSE)
@@ -104,6 +111,14 @@ async def handle_test_main_menu(update, context):
                 chat_id=chat_id,
                 text=TEXT_TESTS_IS_HAS_TRUE_DECODE,
             )
+
+            await db.add_pending_notification(
+                med_id=int(med_id),
+                telegram_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                kind="decode",
+            )
+
             await write_and_sleep(update, context, 3)
             await send_manager_get_decode(update, context, med_id)
             await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
@@ -200,6 +215,13 @@ async def handle_get_med_id(update, context):
                     reply_markup=intro_keyboards.kb_after_good_tests()
                 )
         else:
+            await db.add_pending_notification(
+                med_id=int(med_id),
+                telegram_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                kind="decode"
+            )
+
             await update.message.reply_text(text=TEXT_TESTS_IS_HAS_FALSE)
             await write_and_sleep(update, context, 2)
 
@@ -225,6 +247,13 @@ async def handle_get_med_id_decode(update, context):
         doc_url = await db.get_test_results(number)
 
         if doc_url:
+            await db.add_pending_notification(
+                med_id=int(med_id),
+                telegram_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                kind="decode"
+            )
+
             await update.message.reply_text(text= TEXT_TESTS_IS_HAS_TRUE_DECODE)
             await write_and_sleep(update, context, 3)
             await send_manager_get_decode(update, context, med_id)
@@ -237,6 +266,12 @@ async def handle_get_med_id_decode(update, context):
 
         else:
             await write_and_sleep(update, context, 2)
+            await db.add_pending_notification(
+                med_id=int(med_id),
+                telegram_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                kind="decode"
+            )
             await update.message.reply_text(text=TEXT_TEST_IS_HAS_TRUE_DECODE_FALSE,
                                             reply_markup=tests_keyboards.kb_tests_decode_empty())
 
@@ -298,6 +333,13 @@ async def handle_empty_decode(update, context):
     if q.data == "empty_decode_get_laborant":
         await db.set_neuro_dialog_states(update.effective_user.id , dialog_states["base_speak"])
         await write_and_sleep(update, context, 3)
+        await db.add_pending_notification(
+            med_id=int(med_id),
+            telegram_id=update.effective_user.id,
+            chat_id=update.effective_chat.id,
+            kind="decode"
+        )
+
         await context.bot.send_message(chat_id=update.effective_chat.id, text=TEXT_TESTS_IS_HAS_TRUE_DECODE)
         await send_manager_get_decode(update, context, med_id)
         await write_and_sleep(update, context, 3)

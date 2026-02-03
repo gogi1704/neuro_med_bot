@@ -156,6 +156,13 @@ async def handle_text_message(update, context):
                             reply_markup=kb_after_good_tests()
                         )
                 else:
+                    await db.add_pending_notification(
+                        med_id=int(med_id),
+                        telegram_id=update.effective_user.id,
+                        chat_id=update.effective_chat.id,
+                        kind="decode"
+                    )
+
                     await context.bot.send_message(
                         chat_id=update.effective_chat.id,
                         text=TEXT_TESTS_IS_HAS_FALSE)
@@ -189,6 +196,12 @@ async def handle_text_message(update, context):
                         text=decode_message,
                     )
                     return
+                await db.add_pending_notification(
+                    med_id=int(med_id),
+                    telegram_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    kind="decode"
+                )
 
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
