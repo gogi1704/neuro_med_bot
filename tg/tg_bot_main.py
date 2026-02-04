@@ -12,6 +12,7 @@ from tg.tg_text_handler import handle_text_message
 from tg.tg_manager_chat_handlers import *
 from tg.tg_tests_line_handlers import handle_test_main_menu, handle_decode_yes_no, handle_after_good_tests_yes_no, handle_empty_decode
 from util_funs import setup_jobs
+from tg.tg_check_up_handlers import handle_start_check_up, handle_toggle, handle_final_check_up
 load_dotenv()
 TOKEN = os.environ.get("TG_TOKEN")
 
@@ -42,6 +43,11 @@ async def main():
     application.add_handler(CallbackQueryHandler(handle_headache,pattern="^headache_"))
     application.add_handler(CallbackQueryHandler(handle_decode_yes_no, pattern="^tests_decode_"))
     application.add_handler(CallbackQueryHandler(handle_empty_decode, pattern="^empty_decode_"))
+
+    application.add_handler(CallbackQueryHandler(handle_start_check_up, pattern="^сheck_up_start_"))
+    application.add_handler(CallbackQueryHandler(handle_final_check_up, pattern="^сheck_up_final_"))
+
+    application.add_handler(CallbackQueryHandler(handle_toggle, pattern="^(toggle:|done)"))
 
     application.add_handler(CallbackQueryHandler(handle_after_good_tests_yes_no, pattern="^after_good_tests_"))
     application.add_handler(CallbackQueryHandler(handle_pill_answer,pattern="^pill_"))

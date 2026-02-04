@@ -1,3 +1,4 @@
+python-telegram-bot[job-queue]
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.11.13
@@ -15,8 +16,6 @@ dataclasses-json==0.6.7
 distro==1.9.0
 docx2txt==0.9
 et_xmlfile==2.0.0
-faiss-cpu==1.8.0
-fastapi==0.115.12
 frozenlist==1.6.0
 google-api-core==2.24.2
 google-api-python-client==2.170.0

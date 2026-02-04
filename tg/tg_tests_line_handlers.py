@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+import resources
 from util_funs import parse_int , write_and_sleep, parse_base_answer
 from resources import *
 from db import dialogs_db as db
@@ -29,10 +29,8 @@ async def handle_test_main_menu(update, context):
     if q.data == "tests_main_menu_make_tests":
         await context.bot.send_message(
             chat_id=chat_id,
-            text="тут будет ветка для Сдачи тестов",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Вернуться назад", callback_data="choose_type_user_tests")]
-            ])
+            text=resources.TEXT_MAKE_CHECK_UP,
+            reply_markup=tests_keyboards.kb_check_up_start()
         )
 
     elif q.data == "tests_main_menu_get_tests":

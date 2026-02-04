@@ -1,3 +1,4 @@
+import html
 import json
 import asyncio
 from telegram.constants import ChatAction
@@ -172,3 +173,18 @@ def setup_jobs(application):
     # DEBUG: покажем, что задачи реально зарегистрированы
     print("[DEBUG] jobs:", [j.name for j in application.job_queue.jobs()])
 
+def bold_html(text: str) -> str:
+    """
+    Экранирует текст для HTML и оборачивает его в <b>...</b>
+    """
+    safe_text = html.escape(text)
+    return f"<b>{safe_text}</b>"
+
+async def get_list_and_price(list_tests,tests_price ):
+    text = ""
+    price = 0
+    for test in list_tests:
+        text += f"{test} - {tests_price[test]}₽\n"
+        price += tests_price[test]
+
+    return text, price

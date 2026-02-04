@@ -108,7 +108,7 @@ async def error_handler(update, context):
     if update and update.effective_chat:
         try:
             await update.effective_chat.send_message(
-                "Произошла внутренняя ошибка. Я уже отправил детали разработчику 🙏"
+                "Произошла внутренняя ошибка. Я уже отправил детали разработчику 🙏.\n Чтобы вернуться к работе введите /start или нажмите на команду /start !"
             )
         except Exception:
             pass
