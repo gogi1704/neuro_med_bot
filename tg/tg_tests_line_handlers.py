@@ -2,7 +2,7 @@ import resources
 from util_funs import parse_int , write_and_sleep, parse_base_answer
 from resources import *
 from db import dialogs_db as db
-from tg_keyboards import tests_keyboards , intro_keyboards
+from tg_keyboards import tests_keyboards , intro_keyboards, back_navigation_keyboards
 from tg import tg_manager_chat_handlers
 from ai import open_ai_main
 from ai.ai_prompts import COLLECT_SYSTEM_PROMPT, BASE_USER_PROMPT, BASE_SYSTEM_PROMPT
@@ -133,29 +133,60 @@ async def handle_test_main_menu(update, context):
             )
 
     elif q.data == "tests_main_menu_consult_med":
-        await db.set_neuro_dialog_states(user_id, dialog_states["manager_collect"])
-        wait_msg = await send_wait_emoji(update, context, "⏳")
+        med_id = await db.get_med_id(user_id)
 
-        dialog = await db.get_dialog(user_id) or ""
+        if med_id:
+            number = parse_int(med_id)
+            doc_url = await db.get_test_results(number)
 
-        raw = await open_ai_main.get_gpt_answer(
-            system_prompt=COLLECT_SYSTEM_PROMPT,
-            user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
-        )
-        decision = parse_base_answer(raw)
+            if doc_url:
+                await update.effective_message.reply_text(text=TEXT_NEW_MED_CONSULT_YES,
+                                                reply_markup=back_navigation_keyboards.kb_back_complete_check_up())
+                await write_and_sleep(update, context, 3)
+                await send_manager_get_consult(update, context, med_id, doc_url)
+            else:
+                await write_and_sleep(update, context, 3)
+                await update.effective_message.reply_text(text=TEXT_NEW_MED_CONSULT_NO,
+                                                reply_markup=back_navigation_keyboards.kb_back_complete_check_up())
 
-        await db.append_answer(user_id, "Assistant", decision)
+                await db.add_pending_notification(
+                    med_id=int(med_id),
+                    telegram_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    kind="decode"
+                )
+                await send_manager_get_consult(update, context, med_id, doc_url)
+        else:
+            await db.set_neuro_dialog_states(user_id, dialog_states["get_med_id_consult"])
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=TEXT_TESTS_GET_ID,
+            )
 
-        await replace_wait_with_text(
-            update, context, wait_msg, decision
-        )
+
+        # await db.set_neuro_dialog_states(user_id, dialog_states["manager_collect"])
+        # wait_msg = await send_wait_emoji(update, context, "⏳")
+        #
+        # dialog = await db.get_dialog(user_id) or ""
+        #
+        # raw = await open_ai_main.get_gpt_answer(
+        #     system_prompt=COLLECT_SYSTEM_PROMPT,
+        #     user_prompt=BASE_USER_PROMPT.format(dialog=dialog)
+        # )
+        # decision = parse_base_answer(raw)
+        #
+        # await db.append_answer(user_id, "Assistant", decision)
+        #
+        # await replace_wait_with_text(
+        #     update, context, wait_msg, decision
+        # )
         return
 
     elif q.data == "tests_main_menu_consult_neuro":
         await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
         wait_msg = await send_wait_emoji(update, context, "⏳")
 
-        dialog = await db.get_dialog(user_id) or ""
+        dialog = await db.get_dialog(user_id) or "User: Привет"
 
         raw = await open_ai_main.get_gpt_answer(
             system_prompt=BASE_SYSTEM_PROMPT,
@@ -273,6 +304,38 @@ async def handle_get_med_id_decode(update, context):
             await update.message.reply_text(text=TEXT_TEST_IS_HAS_TRUE_DECODE_FALSE,
                                             reply_markup=tests_keyboards.kb_tests_decode_empty())
 
+async def handle_get_med_id_consult(update, context):
+    med_id = update.message.text.strip()
+    number = parse_int(med_id)
+
+    if number is None:
+        await update.message.reply_text(
+            "❌ Нужно ввести целое число.\nПопробуйте ещё раз:"
+        )
+        return
+
+    else:
+        await db.create_dialog_user_with_med_id(update.effective_user.id , med_id)
+        await db.delete_neuro_dialog_states(update.effective_user.id)
+        doc_url = await db.get_test_results(number)
+
+        if doc_url:
+            await update.message.reply_text(text= TEXT_NEW_MED_CONSULT_YES, reply_markup= back_navigation_keyboards.kb_back_complete_check_up())
+            await write_and_sleep(update, context, 3)
+            await send_manager_get_consult(update, context, med_id, doc_url)
+        else:
+            await write_and_sleep(update, context, 3)
+            await update.message.reply_text(text=TEXT_NEW_MED_CONSULT_NO,
+                                            reply_markup=back_navigation_keyboards.kb_back_complete_check_up())
+
+            await db.add_pending_notification(
+                med_id=int(med_id),
+                telegram_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                kind="decode"
+            )
+            await send_manager_get_consult(update, context, med_id, doc_url)
+
 async def handle_decode_yes_no(update, context):
     q = update.callback_query
     med_id = await db.get_med_id(update.effective_user.id)
@@ -373,4 +436,11 @@ async def send_manager_get_decode(update, context, med_id):
         text_to_manager = f"Пользователь просит расшифровать анализы. Вот ссылка на анализы :{doc_url} \n\n(#Диалог_{update.effective_user.id})."
     else:
         text_to_manager = f"Пользователь просит найти его анализы и сделать расшифровку. Вот номер его пробирки: {med_id}\n\n(#Диалог_{update.effective_user.id})."
+    await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
+
+async def send_manager_get_consult(update, context, med_id, doc_url):
+    if doc_url:
+        text_to_manager = f"Пользователь просит консультацию по результатам анализов.Вот номер его пробирки: {med_id}\nВот ссылка на анализы :{doc_url} \n\n(#Диалог_{update.effective_user.id})."
+    else:
+        text_to_manager = f"Пользователь просит консультацию по результатам анализов.Анализы не найдены в таблице.\n Вот номер его пробирки: {med_id}\n\n(#Диалог_{update.effective_user.id})."
     await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
