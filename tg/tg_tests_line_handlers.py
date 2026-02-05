@@ -103,6 +103,14 @@ async def handle_test_main_menu(update, context):
                     chat_id=chat_id,
                     text=decode_message,
                 )
+                await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
+                await write_and_sleep(update, context, 3)
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text= TEXT_GET_DECODE_COMPLETE_MESSAGE,
+                    reply_markup= back_navigation_keyboards.kb_back_complete_check_up()
+                )
+
                 return
 
             await context.bot.send_message(

@@ -51,5 +51,5 @@ def kb_new_user():
 
 def kb_else_text():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Закончить и открыть главное меню", callback_data="choose_type_user_tests")]
+        [InlineKeyboardButton("Закончить и открыть главное меню", callback_data="choose_type_user_else")]
     ])

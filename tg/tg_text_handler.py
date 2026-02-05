@@ -8,12 +8,11 @@ import asyncio
 from telegram.constants import ChatAction
 from tg import tg_manager_chat_handlers, tg_tests_line_handlers
 from util_funs import send_wait_emoji, replace_wait_with_text
-from tg_keyboards.intro_keyboards import kb_else_text, kb_after_good_tests
+from tg_keyboards.intro_keyboards import kb_after_good_tests
 from tg_keyboards import back_navigation_keyboards
 from tg_keyboards import tests_keyboards
 from tg.tg_tests_line_handlers import send_manager_get_decode
-
-
+from util_funs import write_and_sleep
 
 
 async def handle_text_message(update, context):
@@ -120,8 +119,8 @@ async def handle_text_message(update, context):
             await db.delete_neuro_dialog_states(update.effective_user.id)
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="тут будет ветка для Сдачи тестов",
-                reply_markup= back_navigation_keyboards.kb_back_to_main_menu()
+                text=TEXT_MAKE_CHECK_UP,
+                reply_markup=tests_keyboards.kb_check_up_start()
             )
 
         if answer == "get_results":
@@ -196,6 +195,13 @@ async def handle_text_message(update, context):
                     await context.bot.send_message(
                         chat_id=update.effective_chat.id,
                         text=decode_message,
+                    )
+                    await db.set_neuro_dialog_states(user_id, dialog_states["base_speak"])
+                    await write_and_sleep(update, context, 3)
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=TEXT_GET_DECODE_COMPLETE_MESSAGE,
+                        reply_markup=back_navigation_keyboards.kb_back_complete_check_up()
                     )
                     return
                 await db.add_pending_notification(

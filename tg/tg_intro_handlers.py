@@ -44,6 +44,8 @@ async def handle_choose_user(update, context):
     await q.answer()
     await write_and_sleep(update, context, 2)
     await update.effective_message.delete()
+
+
     if q.data == "choose_type_user_tests":
         await db.set_user_state(update.effective_user.id, "state_tests")
         await context.bot.send_message(
@@ -67,6 +69,14 @@ async def handle_choose_user(update, context):
             text= TEXT_NEW_USER,
             reply_markup= kb_new_user()
         )
+
+    elif q.data == "choose_type_user_else":
+        await db.delete_neuro_dialog_states(update.effective_user.id)
+        await context.bot.send_message(
+                chat_id=q.from_user.id,
+                text=TEXT_TESTS_MAIN_MENU,
+                reply_markup= tests_keyboards.kb_tests_main_menu()
+            )
 
 
 async def handle_headache(update, context):
