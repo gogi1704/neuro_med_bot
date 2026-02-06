@@ -57,49 +57,84 @@ def extract_text_from_docx(docx_path: str) -> str:
     lines = [p.text.strip() for p in doc.paragraphs if p.text and p.text.strip()]
     return "\n".join(lines).strip()
 
-async def send_results_doc_and_text(update: Update, context: ContextTypes.DEFAULT_TYPE, doc_url: str):
+def split_urls_from_cell(cell_value: str) -> list[str]:
+    """
+    В ячейке ссылки записаны построчно.
+    Дополнительно чистим пробелы и пустые строки.
+    """
+    if not cell_value:
+        return []
+    lines = str(cell_value).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    urls = []
+    for line in lines:
+        u = line.strip()
+        if u:
+            urls.append(u)
+    return urls
+
+
+async def send_results_doc_and_text(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    doc_urls: str,
+):
     chat_id = update.effective_chat.id
 
-    doc_id = extract_google_doc_id(doc_url)
-    if not doc_id:
-        await context.bot.send_message(chat_id=chat_id, text="Не смог распознать ссылку на документ.")
+    urls = split_urls_from_cell(doc_urls)
+    if not urls:
+        await context.bot.send_message(chat_id=chat_id, text="В ячейке нет ссылок на документы.")
         return
 
-    tmp_path = None
-    try:
-        tmp_path = await download_google_doc_as_docx(doc_id)
-        text = extract_text_from_docx(tmp_path)
+    await context.bot.send_message(chat_id=chat_id, text=f"Нашёл документов: {len(urls)}. Отправляю…")
 
-        # 1) отправляем документ
-        filename = f"results_{doc_id}.docx"
-        with open(tmp_path, "rb") as f:
-            await context.bot.send_document(
+    sent = 0
+    failed = 0
+
+    for idx, url in enumerate(urls, start=1):
+        doc_id = extract_google_doc_id(url)
+        if not doc_id:
+            failed += 1
+            await context.bot.send_message(
                 chat_id=chat_id,
-                document=InputFile(f, filename=filename),
-                caption="Ваш документ с результатами ✅"
+                text=f"❌ [{idx}/{len(urls)}] Не смог распознать ссылку:\n{url}"
+            )
+            continue
+
+        tmp_path = None
+        try:
+            tmp_path = await download_google_doc_as_docx(doc_id)
+            text = extract_text_from_docx(tmp_path)
+
+            filename = f"results_{idx}_{doc_id}.docx"
+            with open(tmp_path, "rb") as f:
+                await context.bot.send_document(
+                    chat_id=chat_id,
+                    document=InputFile(f, filename=filename),
+                    caption=f"✅ Результаты ({idx}/{len(urls)})"
+                )
+
+            # Если хочешь вернуть отправку текста — раскомментируй блок ниже
+            # if text:
+            #     max_len = 3900
+            #     if len(text) <= max_len:
+            #         await context.bot.send_message(chat_id=chat_id, text=text)
+            #     else:
+            #         for i in range(0, len(text), max_len):
+            #             await context.bot.send_message(chat_id=chat_id, text=text[i:i+max_len])
+
+            sent += 1
+
+        except Exception as e:
+            failed += 1
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ [{idx}/{len(urls)}] Не получилось скачать/прочитать документ:\n{url}\nОшибка: {e}"
             )
 
-        # # 2) отправляем текст (если он есть)
-        # if text:
-        #     # Telegram ограничивает длину сообщения (~4096 символов)
-        #     max_len = 3900
-        #     if len(text) <= max_len:
-        #         await context.bot.send_message(chat_id=chat_id, text=text)
-        #     else:
-        #         # если много — режем на части
-        #         for i in range(0, len(text), max_len):
-        #             await context.bot.send_message(chat_id=chat_id, text=text[i:i+max_len])
-        # else:
-        #     await context.bot.send_message(chat_id=chat_id, text="Документ скачан, но текста внутри не найдено.")
-
-    except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"Не получилось скачать/прочитать документ: {e}")
-
-    finally:
-        # 3) удаляем временный файл
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
 

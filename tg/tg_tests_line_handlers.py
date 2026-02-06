@@ -1,3 +1,4 @@
+import doc_funs
 import resources
 from util_funs import parse_int , write_and_sleep, parse_base_answer
 from resources import *
@@ -440,15 +441,17 @@ async def handle_empty_decode(update, context):
 
 async def send_manager_get_decode(update, context, med_id):
     doc_url = await db.get_test_results(int(med_id))
+    doc_urls = doc_funs.split_urls_from_cell(doc_url)
     if doc_url:
-        text_to_manager = f"Пользователь просит расшифровать анализы. Вот ссылка на анализы :{doc_url} \n\n(#Диалог_{update.effective_user.id})."
+        text_to_manager = f"Пользователь просит расшифровать анализы.Вот номер его пробирки: {med_id}\nВот ссылки на анализы :\n{doc_urls} \n\n(#Диалог_{update.effective_user.id})."
     else:
         text_to_manager = f"Пользователь просит найти его анализы и сделать расшифровку. Вот номер его пробирки: {med_id}\n\n(#Диалог_{update.effective_user.id})."
     await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
 
 async def send_manager_get_consult(update, context, med_id, doc_url):
+    doc_urls = doc_funs.split_urls_from_cell(doc_url)
     if doc_url:
-        text_to_manager = f"Пользователь просит консультацию по результатам анализов.Вот номер его пробирки: {med_id}\nВот ссылка на анализы :{doc_url} \n\n(#Диалог_{update.effective_user.id})."
+        text_to_manager = f"Пользователь просит консультацию по результатам анализов.Вот номер его пробирки: {med_id}\nВот ссылки на анализы :\n{doc_urls} \n\n(#Диалог_{update.effective_user.id})."
     else:
         text_to_manager = f"Пользователь просит консультацию по результатам анализов.Анализы не найдены в таблице.\n Вот номер его пробирки: {med_id}\n\n(#Диалог_{update.effective_user.id})."
     await tg_manager_chat_handlers.send_to_chat(update, context, text_to_manager)
