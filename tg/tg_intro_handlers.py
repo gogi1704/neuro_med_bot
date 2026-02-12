@@ -13,6 +13,21 @@ async def start(update, context):
     await db.delete_dialog(update.effective_chat.id)
     await db.delete_neuro_dialog_states(update.effective_user.id)
 
+    user_from_manager = await db.get_from_manager(update.effective_user.id)
+    if user_from_manager is None:
+        args = context.args
+        new_ref = args[0] if args else None
+        ref_code = new_ref if new_ref else "base_url"
+        print(ref_code)
+        await db.set_from_manager(update.effective_chat.id, ref_code)
+
+
+    # await dialogs_db.add_user(
+    #     user_id=user_id,
+    #     name="",
+    #     from_manager=ref_code
+    # )
+
     user_state = await db.get_user_state(update.effective_user.id)
     if user_state:
         await context.bot.send_message(

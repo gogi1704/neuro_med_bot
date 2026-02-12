@@ -1,10 +1,12 @@
 import html
 import json
-import asyncio
 from telegram.constants import ChatAction
-from telegram.error import BadRequest, RetryAfter
+from telegram.error import BadRequest,  NetworkError, TimedOut, RetryAfter
 from db import dialogs_db as data_base
 from datetime import timedelta
+import asyncio
+
+
 
 def parse_base_answer(model_response: str) -> str:
     """
@@ -103,66 +105,88 @@ async def replace_wait_with_text(update, context, wait_msg, answer_text: str):
 
 from telegram.ext import ContextTypes
 
+_pending_decode_lock = asyncio.Lock()
+
 async def process_pending_kind(context: ContextTypes.DEFAULT_TYPE, kind: str):
     kind = str(kind).strip().lower()
 
     tasks = await data_base.get_all_pending_by_kind(kind)
     print(f"[JOB] process_pending_kind kind={kind} tasks={len(tasks)}")
 
+    # Можно ограничить, чтобы за один проход не отправить слишком много
+    MAX_PER_RUN = 30
+    sent = 0
+
     for row_id, med_id, telegram_id, chat_id in tasks:
-        # if kind == "results":
-        #     payload = data_base.get_results_only(med_id)
-        #     if not payload or not str(payload).strip():
-        #         continue
-        #
-        #     try:
-        #         await context.bot.send_message(
-        #             chat_id=chat_id,
-        #             text=f"Вот результаты ваших анализов:\n{payload}"
-        #         )
-        #         await data_base.delete_pending_by_id(row_id)  # ✅ после успеха
-        #     except Exception as e:
-        #         print(f"[ERR] send results med_id={med_id} chat_id={chat_id}: {e}")
+        if sent >= MAX_PER_RUN:
+            break
 
         if kind == "decode":
+            # 1) results — обязательны. Если их ещё нет, не трогаем задачу.
             result = await data_base.get_results_only(med_id)
-            payload = await data_base.get_decode_only(med_id)
             if not result or not str(result).strip():
+                # results ещё не приехали (синк не успел) → ждём следующий запуск
                 continue
 
-            try:
-                if payload is None:
-                    payload = "Пока нет расшифровки результатов!"
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"Вот результаты ваших анализов:\n{result} \n\n+Расшифровка: {payload}"
-                )
-                await data_base.delete_pending_by_id(row_id)  # ✅ после успеха
-            except Exception as e:
-                print(f"[ERR] send decode med_id={med_id} chat_id={chat_id}: {e}")
+            # 2) decode опционален: если нет — сообщаем “пока нет”
+            decode = await data_base.get_decode_only(med_id)
+            if not decode or not str(decode).strip():
+                decode = "Пока нет расшифровки результатов."
 
-# async def pending_results_job(context: ContextTypes.DEFAULT_TYPE):
-#     print("[JOB] pending_results_job fired")
-#     await process_pending_kind(context, "results")
+            text = f"Вот результаты ваших анализов:\n{result}\n\nРасшифровка:\n{decode}"
+
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=text)
+                await data_base.delete_pending_by_id(row_id)  # ✅ удаляем только после успеха
+                sent += 1
+
+                # маленькая пауза, чтобы не долбить сеть/Telegram
+                await asyncio.sleep(0.2)
+
+            except RetryAfter as e:
+                # Telegram попросил подождать — НЕ удаляем задачу
+                print(f"[WARN] RetryAfter {e.retry_after}s for chat_id={chat_id} med_id={med_id}")
+                # Можно сделать sleep, чтобы не продолжать слать
+                await asyncio.sleep(float(e.retry_after))
+                return
+
+            except (NetworkError, TimedOut) as e:
+                # сетевые — НЕ удаляем, просто дождёмся следующего прогона
+                print(f"[WARN] Network/Timeout while sending decode med_id={med_id} chat_id={chat_id}: {e}")
+                # Можно сделать короткий backoff, чтобы не усугублять
+                await asyncio.sleep(2)
+                continue
+
+            except Exception as e:
+                # другие ошибки (например Forbidden: bot was blocked) —
+                # тут часто разумно удалить задачу, чтобы не крутиться бесконечно.
+                # Но если хочешь гарантированно — можно не удалять.
+                print(f"[ERR] Unexpected while sending decode med_id={med_id} chat_id={chat_id}: {e}")
+
+                # Рекомендую: если бот заблокирован/чат недоступен — удалить.
+                # Если хочешь — я добавлю точечные исключения Forbidden/BadRequest.
+                continue
+
 
 async def pending_decode_job(context: ContextTypes.DEFAULT_TYPE):
-    print("[JOB] pending_decode_job fired")
-    await process_pending_kind(context, "decode")
+    # Защита от параллельного запуска
+    if _pending_decode_lock.locked():
+        print("[JOB] pending_decode_job skipped (already running)")
+        return
+
+    async with _pending_decode_lock:
+        print("[JOB] pending_decode_job fired")
+        await process_pending_kind(context, "decode")
 
 
 def setup_jobs(application):
-    # application.job_queue.run_repeating(
-    #     pending_results_job,
-    #     interval=timedelta(minutes=2),
-    #     first=5,
-    #     name="pending_results_job"
-    # )
     application.job_queue.run_repeating(
         pending_decode_job,
         interval=timedelta(minutes=120),
         first=1800,
         name="pending_decode_job"
     )
+
     application.job_queue.run_repeating(
         data_base.sync_tests_job,
         interval=timedelta(minutes=180),
@@ -170,7 +194,6 @@ def setup_jobs(application):
         name="sync_tests_job"
     )
 
-    # DEBUG: покажем, что задачи реально зарегистрированы
     print("[DEBUG] jobs:", [j.name for j in application.job_queue.jobs()])
 
 def bold_html(text: str) -> str:

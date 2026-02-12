@@ -27,7 +27,8 @@ async def init_db():
                 dialog_text TEXT,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 med_id TEXT,
-                user_state TEXT
+                user_state TEXT,
+                from_manager TEXT
             )
         """)
 
@@ -173,11 +174,11 @@ async def sync_from_google_sheets():
         # ---------------------------
         rows = sheets["neuro_bot_dialogs"].get_all_values()[1:]
         for r in rows:
-            # ожидаем 6 колонок
-            if not r or len(r) < 6:
+            # ожидаем 7 колонок
+            if not r or len(r) < 7:
                 continue
 
-            telegram_id, user_name, dialog_text, updated_at, med_id, user_state = r[:6]
+            telegram_id, user_name, dialog_text, updated_at, med_id, user_state, from_manager = r[:7]
             tid = _safe_int(telegram_id)
             if tid is None:
                 continue
@@ -185,10 +186,10 @@ async def sync_from_google_sheets():
             await db.execute(
                 """
                 INSERT INTO neuro_bot_dialogs
-                (telegram_id, user_name, dialog_text, updated_at, med_id, user_state)
-                VALUES (?,?,?,?,?,?)
+                (telegram_id, user_name, dialog_text, updated_at, med_id, user_state, from_manager)
+                VALUES (?,?,?,?,?,?,?)
                 """,
-                (tid, user_name, dialog_text, updated_at, med_id, user_state)
+                (tid, user_name, dialog_text, updated_at, med_id, user_state, from_manager)
             )
 
         # ---------------------------
@@ -353,13 +354,13 @@ async def sync_to_google_sheets():
         # neuro_bot_dialogs
         # ---------------------------
         async with db.execute(
-            "SELECT telegram_id, user_name, dialog_text, updated_at, med_id, user_state FROM neuro_bot_dialogs"
+            "SELECT telegram_id, user_name, dialog_text, updated_at, med_id, user_state, from_manager FROM neuro_bot_dialogs"
         ) as cur:
             rows = await cur.fetchall()
         sheets["neuro_bot_dialogs"].clear()
         sheets["neuro_bot_dialogs"].update(
             "A1",
-            [["telegram_id", "user_name", "dialog_text", "updated_at", "med_id", "user_state"]] + rows
+            [["telegram_id", "user_name", "dialog_text", "updated_at", "med_id", "user_state, from_manager"]] + rows
         )
 
         # ---------------------------
@@ -540,6 +541,32 @@ async def get_user_state(telegram_id: int) -> str | None:
         ) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else None
+
+async def set_from_manager(telegram_id: int, from_manager: str):
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            """
+            INSERT INTO neuro_bot_dialogs (telegram_id, from_manager)
+            VALUES (?, ?)
+            ON CONFLICT(telegram_id)
+            DO UPDATE SET
+                from_manager = excluded.from_manager,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (telegram_id, from_manager)
+        )
+        await db.commit()
+
+async def get_from_manager(telegram_id: int) -> str | None:
+    async with aiosqlite.connect(db_path) as db:
+        async with db.execute(
+            "SELECT from_manager FROM neuro_bot_dialogs WHERE telegram_id = ?",
+            (telegram_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row and row[0] else None
+
+
 
 # =========================================================
 # USERS

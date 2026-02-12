@@ -25,7 +25,7 @@ def kb_tests_decode_empty():
 
 def kb_check_up_start():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Ознакомиться с комплексами",url=f"https://telegra.ph/CHek-apy-po-laboratorii-OOO-CHelovek-09-10?ver={int(datetime.now().timestamp())}")],
+        [InlineKeyboardButton("Ознакомиться с комплексами",url=f"https://telegra.ph/CHek-apy-po-laboratorii-OOO-CHelovek-02-06?ver={int(datetime.now().timestamp())}")],
         [InlineKeyboardButton("Добавить обследования", callback_data="сheck_up_start_add")],
         [InlineKeyboardButton("Выйти", callback_data="сheck_up_start_back")],
             ])

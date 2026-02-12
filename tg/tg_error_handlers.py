@@ -47,7 +47,7 @@ async def error_handler(update, context):
         pass
 
     # 2) Формируем диагностическое сообщение для админа
-    tb = traceback.format_exc()
+    tb = "".join(traceback.format_exception(type(err), err, err.__traceback__))
 
     # достаём "последний кадр" (файл/строка/функция) если есть traceback
     file_line = ""
